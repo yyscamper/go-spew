@@ -266,10 +266,12 @@ func (d *dumpState) dump(v reflect.Value) {
 	// Print type information unless already handled elsewhere.
 	if !d.ignoreNextType {
 		d.indent()
-		d.w.Write(openParenBytes)
-		d.w.Write([]byte(v.Type().String()))
-		d.w.Write(closeParenBytes)
-		d.w.Write(spaceBytes)
+		if !d.cs.DisableType {
+			d.w.Write(openParenBytes)
+			d.w.Write([]byte(v.Type().String()))
+			d.w.Write(closeParenBytes)
+			d.w.Write(spaceBytes)
+		}
 	}
 	d.ignoreNextType = false
 
@@ -282,9 +284,9 @@ func (d *dumpState) dump(v reflect.Value) {
 	case reflect.Map, reflect.String:
 		valueLen = v.Len()
 	}
-	if valueLen != 0 || !d.cs.DisableCapacities && valueCap != 0 {
+	if (!d.cs.DisableLength && valueLen != 0) || (!d.cs.DisableCapacities && valueCap != 0) {
 		d.w.Write(openParenBytes)
-		if valueLen != 0 {
+		if !d.cs.DisableLength && valueLen != 0 {
 			d.w.Write(lenEqualsBytes)
 			printInt(d.w, int64(valueLen), 10)
 		}
@@ -451,19 +453,23 @@ func (d *dumpState) dump(v reflect.Value) {
 // fdump is a helper function to consolidate the logic from the various public
 // methods which take varying writers and config states.
 func fdump(cs *ConfigState, w io.Writer, a ...interface{}) {
-	for _, arg := range a {
+	for idx, arg := range a {
 		if arg == nil {
 			w.Write(interfaceBytes)
 			w.Write(spaceBytes)
 			w.Write(nilAngleBytes)
-			w.Write(newlineBytes)
+			if idx != (len(a) - 1) {
+				w.Write(newlineBytes)
+			}
 			continue
 		}
 
 		d := dumpState{w: w, cs: cs}
 		d.pointers = make(map[uintptr]int)
 		d.dump(reflect.ValueOf(arg))
-		d.w.Write(newlineBytes)
+		if idx != (len(a) - 1) {
+			d.w.Write(newlineBytes)
+		}
 	}
 }
 
