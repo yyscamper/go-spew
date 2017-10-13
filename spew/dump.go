@@ -123,10 +123,12 @@ func (d *dumpState) dumpPtr(v reflect.Value) {
 	}
 
 	// Display type information.
-	d.w.Write(openParenBytes)
-	d.w.Write(bytes.Repeat(asteriskBytes, indirects))
-	d.w.Write([]byte(ve.Type().String()))
-	d.w.Write(closeParenBytes)
+	if !d.cs.DisableType {
+		d.w.Write(openParenBytes)
+		d.w.Write(bytes.Repeat(asteriskBytes, indirects))
+		d.w.Write([]byte(ve.Type().String()))
+		d.w.Write(closeParenBytes)
+	}
 
 	// Display pointer information.
 	if !d.cs.DisablePointerAddresses && len(pointerChain) > 0 {
@@ -141,7 +143,9 @@ func (d *dumpState) dumpPtr(v reflect.Value) {
 	}
 
 	// Display dereferenced value.
-	d.w.Write(openParenBytes)
+	if !d.cs.DisableType || !d.cs.DisablePointerAddresses {
+		d.w.Write(openParenBytes)
+	}
 	switch {
 	case nilFound == true:
 		d.w.Write(nilAngleBytes)
@@ -153,7 +157,9 @@ func (d *dumpState) dumpPtr(v reflect.Value) {
 		d.ignoreNextType = true
 		d.dump(ve)
 	}
-	d.w.Write(closeParenBytes)
+	if !d.cs.DisableType || !d.cs.DisablePointerAddresses {
+		d.w.Write(closeParenBytes)
+	}
 }
 
 // dumpSlice handles formatting of arrays and slices.  Byte (uint8 under
@@ -345,7 +351,7 @@ func (d *dumpState) dump(v reflect.Value) {
 		fallthrough
 
 	case reflect.Array:
-		d.w.Write(openBraceNewlineBytes)
+		d.w.Write(openBracketNewlineBytes)
 		d.depth++
 		if (d.cs.MaxDepth != 0) && (d.depth > d.cs.MaxDepth) {
 			d.indent()
@@ -355,7 +361,7 @@ func (d *dumpState) dump(v reflect.Value) {
 		}
 		d.depth--
 		d.indent()
-		d.w.Write(closeBraceBytes)
+		d.w.Write(closeBracketBytes)
 
 	case reflect.String:
 		d.w.Write([]byte(strconv.Quote(v.String())))
